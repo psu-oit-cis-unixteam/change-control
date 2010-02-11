@@ -1,0 +1,9 @@
+------[ $id ]-----------------------
+Subject: $Subject
+Requester: $Requestors
+Start Time: $Starts
+Status: $Status
+Type: $CC_Type
+
+$CC_Public_Description
+

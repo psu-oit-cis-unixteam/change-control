@@ -1,0 +1,9 @@
+Subject: Change Control Items for $date
+
+If you submitted a change that is not in this week's list, please make
+sure you entered a valid Start date.  For more information on the Change
+Control process see:
+
+http://www.oit.pdx.edu/changecontrol
+
+$changes
