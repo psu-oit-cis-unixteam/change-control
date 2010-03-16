@@ -5,5 +5,8 @@ Start Time: $Starts
 Status: $Status
 Type: $CC_Type
 
+Public Description:
 $CC_Public_Description
 
+Customer Impact:
+$CC_Customer_Impact

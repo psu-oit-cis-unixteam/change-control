@@ -6,4 +6,13 @@ Control process see:
 
 http://www.oit.pdx.edu/changecontrol
 
+IMPORTANT: For those submitting change control tickets, please remember
+to always include the end user impact and expected downtime (if any) in
+the public description field.  Changes that do not include this
+information in the public description field will be denied.  For a
+detailed description of what should be included in the public
+description field see:
+
+http://www.oit.pdx.edu/changecontrolhelp#ChangeRequestFieldDescriptions
+
 $changes

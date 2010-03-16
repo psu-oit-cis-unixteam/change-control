@@ -6,7 +6,6 @@ Refer: http://wiki.bestpractical.com/view/REST
 import sys
 import getopt
 import getpass
-import textwrap
 import urllib
 import urllib2
 from datetime import date
@@ -101,7 +100,7 @@ def ticket_to_dict(ticket):
 		if row is RT_INDENT: pass
 		elif row is "": pass
 		elif RT_INDENT in row:
-			#append extra lines to the last known field name
+			#append to the last named field
 			key, value = row_split(ticket[last_known_field])
 			ticket_dict[key] = ticket_dict[key] + " " + row.strip()
 		else:
@@ -149,12 +148,10 @@ def main(argv):
 			user = arg
 			password = getpass.getpass()
 	
-	query = "Created < 'Today 12:00:00' AND Starts > 'Today 12:00:00' AND Queue='change-control' AND (Status = 'new' OR Status = 'open')"
+	query = "Created < 'Today 15:00:00' AND Starts > 'Today 15:00:00' AND Queue='change-control' AND (Status = 'new' OR Status = 'open')"
 	session(user, password)
 	fromaddr = user+"@pdx.edu"
-	mail = make_mail(query)
-	print mail
-	#send_mail(fromaddr, fromaddr, mail)
+	send_mail(fromaddr, "bass@pdx.edu", make_mail(query))
 
 if __name__ == "__main__":
 	if len(sys.argv) < 3:
