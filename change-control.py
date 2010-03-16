@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 """Use the RT REST API to retrieve contemporary change-control tickets.
 Refer: http://wiki.bestpractical.com/view/REST
+
+Usage: send a change control email
+		change-control.py -u <rt username> -t <to whom>
+       print a change control email with query
+		change-control.py -u <rt username> -p
+       change-control.py -h
+		print this message
 """
 
 import sys
@@ -130,19 +137,16 @@ def send_mail(fromaddr, toaddr, content, server='localhost'):
 	server.quit()
 	return content
 
-def usage():
-	print "usage: change-control.py -u <username>"
-
 def main(argv):
 	try:
 		opts, args = getopt.getopt(argv, "hu:")
 	except getopt.GetoptError:
-		usage()
+		print __doc__
 		sys.exit(2)
 
 	for opt, arg in opts:
 		if '-u' not in opt:
-			usage()
+			print __doc__
 			sys.exit()
 		elif opt == '-u':
 			user = arg
@@ -155,7 +159,7 @@ def main(argv):
 
 if __name__ == "__main__":
 	if len(sys.argv) < 3:
-		usage()
+		print __doc__
 		sys.exit()
 	else:
 		main(sys.argv[1:])
