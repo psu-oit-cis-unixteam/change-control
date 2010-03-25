@@ -154,8 +154,9 @@ def main(argv):
 	
 	query = "Created < 'Today 15:00:00' AND Starts > 'Today 15:00:00' AND Queue='change-control' AND (Status = 'new' OR Status = 'open')"
 	session(user, password)
-	fromaddr = user+"@pdx.edu"
-	send_mail(fromaddr, "bass@pdx.edu", make_mail(query))
+	fromaddr= user+"@pdx.edu"
+	#send_mail(fromaddr, fromaddr, make_mail(query))
+	print make_mail(query)
 
 if __name__ == "__main__":
 	if len(sys.argv) < 3:

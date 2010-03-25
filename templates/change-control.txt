@@ -2,6 +2,7 @@
 Subject: $Subject
 Requester: $Requestors
 Start Time: $Starts
+Duration: $CC_Duration
 Status: $Status
 Type: $CC_Type
 
@@ -10,3 +11,4 @@ $CC_Public_Description
 
 Customer Impact:
 $CC_Customer_Impact
+
