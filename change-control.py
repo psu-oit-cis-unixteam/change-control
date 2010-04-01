@@ -1,21 +1,15 @@
 #!/usr/bin/env python
 """Use the RT REST API to retrieve contemporary change-control tickets.
 Refer: http://wiki.bestpractical.com/view/REST
-
-Usage: send a change control email
-		change-control.py -u <rt username> -t <to whom>
-       print a change control email with query
-		change-control.py -u <rt username> -p
-       change-control.py -h
-		print this message
 """
 
 import sys
-import getopt
 import getpass
+import textwrap
 import urllib
 import urllib2
 from datetime import date
+from optparse import OptionParser
 from string import Template
 from smtplib import SMTP
 
@@ -28,6 +22,8 @@ RT_SEARCH	= RT_API + '/search/ticket?%s'
 RT_SHOW		= RT_API + '/%s/show'
 #RT_INDENT is the signifier of a multiline field in (l)ong format
 RT_INDENT	= "    "
+DEFAULT_QUERY	= "Created < 'Today 15:00:00' AND Starts > 'Today 15:00:00' AND Queue='change-control' AND (Status = 'new' OR Status = 'open')"
+DEFAULT_DOMAIN	= "pdx.edu"
 
 def session(username, password, rt_base=RT_BASE):
 	"""Get an auth token for this session.
@@ -112,7 +108,7 @@ def ticket_to_dict(ticket):
 			ticket_dict[key] = ticket_dict[key] + " " + row.strip()
 		else:
 			key, value = row_split(row)
-			ticket_dict[key] = value
+			ticket_dict[key] = textwrap.fill(value)
 			last_known_field = index
 		
 	return ticket_dict
@@ -129,38 +125,49 @@ def make_mail(query, orderby="+Starts"):
 	for ticket in search(query, orderby):
 		ticket = ticket_to_dict(show(ticket))
 		mail += template(ticket)
-	return template({'changes': mail, 'date': date.today()}, 'change-control-preamble.txt')
+	mail = template({'changes': mail, 
+			 'date': date.today()}, 'change-control-preamble.txt')
+	return mail
 
-def send_mail(fromaddr, toaddr, content, server='localhost'):
+def send_mail(fromaddr, toaddr, content, server='mailhost.pdx.edu'):
 	server = SMTP(server)
 	server.sendmail(fromaddr, toaddr, content)
 	server.quit()
 	return content
 
-def main(argv):
-	try:
-		opts, args = getopt.getopt(argv, "hu:")
-	except getopt.GetoptError:
-		print __doc__
-		sys.exit(2)
-
-	for opt, arg in opts:
-		if '-u' not in opt:
-			print __doc__
-			sys.exit()
-		elif opt == '-u':
-			user = arg
-			password = getpass.getpass()
+def main():
+	usage = "usage: %prog [options] -u rt_username"
+	parser = OptionParser(usage=usage)
+	parser.add_option("-u", dest="user", help="RT username.")
+	parser.add_option("-t", dest="to", default=False, help="Email address to send mail to.")
+	parser.add_option("-s", action="store_false", dest="echo", default=True, help="Silence output.")
+	parser.add_option("-q", action="store", type="string", dest="query",
+			  default=DEFAULT_QUERY, help="An alternative query.")
 	
-	query = "Created < 'Today 15:00:00' AND Starts > 'Today 15:00:00' AND Queue='change-control' AND (Status = 'new' OR Status = 'open')"
-	session(user, password)
-	fromaddr= user+"@pdx.edu"
-	#send_mail(fromaddr, fromaddr, make_mail(query))
-	print make_mail(query)
+	(options, args) = parser.parse_args()
+	
+	if not options.user:
+		parser.print_help()
+		sys.exit(1)
+
+	#print these first 'cause make_mail() is going to take a minute
+	if options.echo:
+		print options.query
+	if options.echo and options.to:
+		print "Sending mail to:", options.to
+	
+	#get password and open a session	
+	password = getpass.getpass()
+	session(options.user, password)
+	
+	#generate the message
+	mail = make_mail(options.query)
+	
+	if options.echo:
+		print mail
+	if options.to:	
+		from_addr = options.user+"@"+DEFAULT_DOMAIN
+		send_mail(from_addr, options.to, mail)
 
 if __name__ == "__main__":
-	if len(sys.argv) < 3:
-		print __doc__
-		sys.exit()
-	else:
-		main(sys.argv[1:])
+		main()
