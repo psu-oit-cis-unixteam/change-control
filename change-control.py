@@ -24,6 +24,7 @@ RT_SHOW		= RT_API + '/%s/show'
 RT_INDENT	= "    "
 DEFAULT_QUERY	= "Created < 'Today 15:00:00' AND Starts > 'Today 15:00:00' AND Queue='change-control' AND (Status = 'new' OR Status = 'open')"
 DEFAULT_DOMAIN	= "pdx.edu"
+FROM_ADDR	= "change-control-owner@lists.pdx.edu"
 
 def session(username, password, rt_base=RT_BASE):
 	"""Get an auth token for this session.
@@ -45,6 +46,15 @@ def session(username, password, rt_base=RT_BASE):
 		print "Failed to contact RT."
 		exit()
 
+def fetch(url):
+	try:
+		responder	= urllib2.urlopen(url)
+		response	= responder.read()
+		responder.close()
+		return trim_header(response)
+	except urllib2.URLError:
+		sys.exit("Failed to contact RT while fetching %s" % url)
+
 def search(query, orderby, format="i"):
 	"""Build an RT query string.
 
@@ -60,28 +70,14 @@ def search(query, orderby, format="i"):
 					'orderby':	orderby,
 					'format':	format,
 				})
-	try:
-		responder	= urllib2.urlopen(RT_SEARCH % query)
-		tickets		= responder.read()
-		responder.close()
-		return trim_header(tickets)
-	except urllib2.URLError:
-		print "Failed to contact RT while executing query."
-		exit()
+	return fetch(RT_SEARCH % query)
 
 def show(ticket):
 	"""Perform a query to retrieve the full details of a ticket.
 
 	ticket: A reference to an RT ticket, i.e.: ticket/1234567
 	"""
-	try:
-		responder	= urllib2.urlopen(RT_SHOW % ticket)
-		ticket		= responder.read()
-		responder.close()
-		return trim_header(ticket)
-	except urllib2.URLError:
-		print "Failed to contact RT while executing query."
-		exit()
+	return fetch(RT_SHOW % ticket)
 
 def trim_header(response):
 	"""Remove the RT response header, which is a statusline and newline."""
@@ -138,11 +134,12 @@ def send_mail(fromaddr, toaddr, content, server='mailhost.pdx.edu'):
 def main():
 	usage = "usage: %prog [options] -u rt_username"
 	parser = OptionParser(usage=usage)
-	parser.add_option("-u", dest="user", help="RT username.")
-	parser.add_option("-t", dest="to", default=False, help="Email address to send mail to.")
+	parser.add_option("-u", dest="user", default=getpass.getuser(), help="RT username, defaults to current user: %default")
+	parser.add_option("-t", dest="to_addr", default=False, help="Email address to send mail to, default: print to stdout.")
+	parser.add_option("-f", dest="from_addr", default=FROM_ADDR, help="Mail origin, default: %default.")
 	parser.add_option("-s", action="store_false", dest="echo", default=True, help="Silence output.")
 	parser.add_option("-q", action="store", type="string", dest="query",
-			  default=DEFAULT_QUERY, help="An alternative query.")
+			  default=DEFAULT_QUERY, help="An alternative query. Default: '%default'")
 	
 	(options, args) = parser.parse_args()
 	
@@ -153,8 +150,8 @@ def main():
 	#print these first 'cause make_mail() is going to take a minute
 	if options.echo:
 		print options.query
-	if options.echo and options.to:
-		print "Sending mail to:", options.to
+	if options.echo and options.to_addr:
+		print "Sending mail to:", options.to_addr
 	
 	#get password and open a session	
 	password = getpass.getpass()
@@ -165,9 +162,8 @@ def main():
 	
 	if options.echo:
 		print mail
-	if options.to:	
-		from_addr = options.user+"@"+DEFAULT_DOMAIN
-		send_mail(from_addr, options.to, mail)
+	if options.to_addr:	
+		send_mail(options.from_addr, options.to_addr, mail)
 
 if __name__ == "__main__":
 		main()
