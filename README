@@ -1,0 +1,6 @@
+Just a little script to generate an email compliant with the policy enumerated at:
+http://oit.pdx.edu/changecontrol
+
+Other organizations may implement similar, since this embeds so much PSU oddity
+I imagine it's use to outsiders is predominantly as an example of a python script
+using the RT API, for whatever that's worth.
