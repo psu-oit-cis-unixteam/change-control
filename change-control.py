@@ -132,7 +132,7 @@ def send_mail(fromaddr, toaddr, content, server='mailhost.pdx.edu'):
 	return content
 
 def main():
-	usage = "usage: %prog [options] -u rt_username"
+	usage = "usage: %prog [options]"
 	parser = OptionParser(usage=usage)
 	parser.add_option("-u", dest="user", default=getpass.getuser(), help="RT username, defaults to current user: %default")
 	parser.add_option("-t", dest="to_addr", default=False, help="Email address to send mail to, default: print to stdout.")
@@ -143,10 +143,6 @@ def main():
 	
 	(options, args) = parser.parse_args()
 	
-	if not options.user:
-		parser.print_help()
-		sys.exit(1)
-
 	#print these first 'cause make_mail() is going to take a minute
 	if options.echo:
 		print options.query
