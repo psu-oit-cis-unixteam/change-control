@@ -103,6 +103,9 @@ def ticket_to_dict(ticket):
 			key, value = row_split(ticket[last_known_field])
 			ticket_dict[key] = ticket_dict[key] + " " + row.strip()
 		else:
+			#strip ticket/ to present this in the historical way
+			if "id" in row: row = row.replace("ticket/", "")
+			#wrap and store in dict
 			key, value = row_split(row)
 			ticket_dict[key] = textwrap.fill(value)
 			last_known_field = index
