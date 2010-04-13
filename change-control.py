@@ -41,7 +41,10 @@ def session(username, password, rt_base=RT_BASE):
 	try:
 		session	= auth.open(rt_base, credentials)
 		auth.close()
-		return session
+		if "RT at a glance" not in session.read(): #afaik this is the only way to tell... it's 200 no matter what
+			sys.exit("Failed to log in to RT, check your username and password.")
+		else:
+			return session
 	except urllib2.URLError:
 		print "Failed to contact RT."
 		exit()
@@ -104,7 +107,7 @@ def ticket_to_dict(ticket):
 			ticket_dict[key] = ticket_dict[key] + " " + row.strip()
 		else:
 			#strip ticket/ to present this in the historical way
-			if "id" in row: row = row.replace("ticket/", "")
+			if "id: " in row: row = row.replace("ticket/", "")
 			#wrap and store in dict
 			key, value = row_split(row)
 			ticket_dict[key] = textwrap.fill(value)
