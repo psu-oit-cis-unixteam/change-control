@@ -150,7 +150,7 @@ def main():
 		print "Sending mail to:", options.to_addr
 	
 	#get password and open a session	
-	password = getpass.getpass()
+	password = getpass.getpass("Password for %s on %s: " % (options.user, RT_BASE))
 	session(options.user, password)
 	
 	#generate the message
