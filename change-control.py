@@ -128,9 +128,9 @@ def make_mail(query, orderby="+Starts"):
 			 'date': date.today()}, 'change-control-preamble.txt')
 	return mail
 
-def send_mail(fromaddr, toaddr, content, server='mailhost.pdx.edu'):
+def send_mail(from_addr, toaddr, content, server='mailhost.pdx.edu'):
 	server = SMTP(server)
-	server.sendmail(fromaddr, toaddr, content)
+	server.sendmail(from_addr, toaddr, content)
 	server.quit()
 	return content
 
