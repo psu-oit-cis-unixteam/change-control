@@ -46,8 +46,7 @@ def session(username, password, rt_base=RT_BASE):
 		else:
 			return session
 	except urllib2.URLError:
-		print "Failed to contact RT."
-		exit()
+		sys.exit("Failed to contact RT while logging in.")
 
 def fetch(url):
 	try:
