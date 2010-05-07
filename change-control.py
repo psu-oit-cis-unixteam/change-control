@@ -3,12 +3,13 @@
 Refer: http://wiki.bestpractical.com/view/REST
 """
 
+import date
 import sys
 import getpass
 import textwrap
 import urllib
 import urllib2
-from datetime import date
+from datetime import datetime
 from optparse import OptionParser
 from string import Template
 from smtplib import SMTP
@@ -22,9 +23,19 @@ RT_SEARCH	= RT_API + '/search/ticket?%s'
 RT_SHOW		= RT_API + '/%s/show'
 #RT_INDENT is the signifier of a multiline field in (l)ong format
 RT_INDENT	= "    "
-DEFAULT_QUERY	= "Created < 'Today 15:00:00' AND Starts > 'Today 15:00:00' AND Queue='change-control' AND (Status = 'new' OR Status = 'open')"
+CHANGE_HOUR	= "15:00:00"
+CHANGE_DAY	= "Thursday"
+DAYS		= [ 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday' ]
+DEFAULT_QUERY	= "Created < '%s' AND Starts > '%s' AND Queue='change-control' AND (Status = 'new' OR Status = 'open')"
 DEFAULT_DOMAIN	= "pdx.edu"
 FROM_ADDR	= "change-control-owner@lists.pdx.edu"
+
+def meeting_date(hour=CHANGE_HOUR, day=CHANGE_DAY):
+	day = DAYS.indexof(day) #numeric day of week for change day
+	
+	if datetime.weekday(date.today()) < day:
+		pass #convert date
+	#CHANGE_MEETING	= date.today().strftime("%Y-%m-%d 15:00:00")
 
 def session(username, password, rt_base=RT_BASE):
 	"""Get an auth token for this session.
