@@ -1,6 +1,11 @@
-#!/usr/bin/env python
-"""Use the RT REST API to retrieve contemporary change-control tickets.
+#!/usr/bin/env python2.6
+"""
+Use the RT REST API to retrieve contemporary change-control tickets.
+
 Refer: http://wiki.bestpractical.com/view/REST
+
+TODO:
+    Write docstrings
 """
 
 import sys
@@ -8,23 +13,64 @@ import getpass
 import textwrap
 import urllib
 import urllib2
-from datetime import date
+from datetime import date, timedelta
 from optparse import OptionParser
-from string import Template
 from smtplib import SMTP
 
 __author__	= "Max Parmer"
 __email__	= "maxp@pdx.edu"
 
-RT_BASE		= 'https://support.oit.pdx.edu'
-RT_API		= RT_BASE + '/REST/1.0'
-RT_SEARCH	= RT_API + '/search/ticket?%s'
-RT_SHOW		= RT_API + '/%s/show'
+MON, TUE, WED, THU, FRI, SAT, SUN = range(7)
+
+RT_BASE             = 'https://support.oit.pdx.edu'
+RT_API              = RT_BASE + '/REST/1.0'
+RT_SEARCH           = RT_API + '/search/ticket?%s'
+RT_SHOW             = RT_API + '/%s/show'
+RT_TICKET_URL       = RT_BASE + '/Ticket/Display.html?id=%s'
 #RT_INDENT is the signifier of a multiline field in (l)ong format
-RT_INDENT	= "    "
-DEFAULT_QUERY   = "Created < 'Today 15:00:00' AND Starts > 'Today 15:00:00' AND Queue='change-control' AND (Status = 'new' OR Status = 'open')"
-DEFAULT_DOMAIN	= "pdx.edu"
-FROM_ADDR	= "change-control-owner@lists.pdx.edu"
+RT_INDENT           = "    "
+CURRENT_WEEK_QUERY	= "Created < '%s 15:00:00' AND Starts > '%s 15:00:00' AND Starts < '%s 15:00:00' AND Queue='change-control' AND (Status = 'new' OR Status = 'open')"
+UPCOMING_QUERY      = "Starts > '%s 15:00:00' AND Queue='change-control' AND (Status = 'new' OR Status = 'open')"
+DEFAULT_DOMAIN	    = "pdx.edu"
+MAILHOST            = "mailhost.pdx.edu"
+
+CC_MESSAGE          = """To: %(to_addr)s
+Subject: Change Control Items for %(date)s
+
+%(message)s
+"""
+
+CC_PREAMBLE         = """If you submitted a change that is not in this week's list, please make
+sure you entered a valid Start date.  For more information on the Change
+Control process see:
+
+http://www.oit.pdx.edu/changecontrol
+
+%(changes)s
+
+======[ Future Changes ]===============
+
+
+%(future_changes)s
+
+"""
+
+CC_BODY             = """------[ %(id)s ]-----------------------
+Subject: %(Subject)s
+Requester: %(Requestors)s
+Start Time: %(Starts)s
+Duration: %(CC_Duration)s
+Status: %(Status)s
+Type: %(CC_Type)s
+Ticket: %(link)s
+
+Public Description:
+%(CC_Public_Description)s
+
+Customer Impact:
+%(CC_Customer_Impact)s
+
+"""
 
 def session(username, password, rt_base=RT_BASE):
 	"""Get an auth token for this session.
@@ -46,9 +92,10 @@ def session(username, password, rt_base=RT_BASE):
 		else:
 			return session
 	except urllib2.URLError:
-		sys.exit("Failed to contact RT while logging in.")
+        sys.exit("Failed to contact RT while logging in.")
 
 def fetch(url):
+	"""Fetch a URL, trim the header and return the result as str."""
 	try:
 		responder	= urllib2.urlopen(url)
 		response	= responder.read()
@@ -111,59 +158,86 @@ def ticket_to_dict(ticket):
 			key, value = row_split(row)
 			ticket_dict[key] = textwrap.fill(value)
 			last_known_field = index
-		
+            
+	ticket_dict['link'] = RT_TICKET_URL % ticket_dict['id']
 	return ticket_dict
 
-def template(object, template='change-control.txt'):
-	file = open("templates/"+template, "r")
-	template = file.read()
-	file.close()
-	template = Template(template)
-	return template.substitute(object)
+def format_tickets(tickets, body, ticket_format=CC_BODY):
+    """Iterate through a list of tickets and apply the ticket_format to them."""
+    for ticket in tickets:
+        ticket = ticket_to_dict(show(ticket))
+        body += ticket_format % ticket
+    return body
 
-def make_mail(query, orderby="+Starts"):
-	mail = str()	
-	for ticket in search(query, orderby):
-		ticket = ticket_to_dict(show(ticket))
-		mail += template(ticket)
-	mail = template({'changes': mail, 
-			 'date': date.today()}, 'change-control-preamble.txt')
-	return mail
+def make_message(query, upcoming_query, orderby="+Starts"):
+	"""Run the specified queries and template them into a message."""
+	changes, future_changes = str(), str()
+	this_week = search(query, orderby)
+	next_week = search(upcoming_query, orderby)
+	changes = format_tickets(this_week, changes)
+	if len(next_week) > 0:
+	    future_changes = format_tickets(next_week, future_changes)
+	else:
+	    future_changes = "None scheduled."
+	return CC_PREAMBLE % {'changes': changes, 'future_changes': future_changes}
 
-def send_mail(from_addr, toaddr, content, server='mailhost.pdx.edu'):
+def make_mail(to_addr, change_date, message):
+    """Attach To: and Subject: headers to the change-control message."""
+    return CC_MESSAGE % {'to_addr': to_addr, 'date': change_date, 'message': message}
+
+def send_mail(from_addr, to_addr, content, server=MAILHOST):
+	"""Send an email."""
 	server = SMTP(server)
-	server.sendmail(from_addr, toaddr, content)
+	server.sendmail(from_addr, to_addr, content)
 	server.quit()
-	return content
+
+def next_change_days(today, change_day):
+    """Calculate the next change day."""
+    delta = change_day - today.weekday()
+    if delta < 0:   # then it's the next week.
+        delta = delta + 7
+    soonest_day = today + timedelta(days=delta)
+    next_day = soonest_day + timedelta(days=7)
+    return (soonest_day, next_day)
 
 def main():
 	usage = "usage: %prog [options]"
 	parser = OptionParser(usage=usage)
+	parser.add_option("-d", dest="day", default=THU, help="Day of the week for change control, i.e. Monday is 0, Tuesday is 1, default: %default")
 	parser.add_option("-u", dest="user", default=getpass.getuser(), help="RT username, defaults to current user: %default")
+	parser.add_option("-p", dest="password", help="RT password")
 	parser.add_option("-t", dest="to_addr", default=False, help="Email address to send mail to, default: print to stdout.")
-	parser.add_option("-f", dest="from_addr", default=FROM_ADDR, help="Mail origin, default: %default.")
+	parser.add_option("-f", dest="from_addr", default=False, help="Mail origin, default: %default.")
 	parser.add_option("-s", action="store_false", dest="echo", default=True, help="Silence output.")
-	parser.add_option("-q", action="store", type="string", dest="query",
-			  default=DEFAULT_QUERY, help="An alternative query. Default: '%default'")
 	
 	(options, args) = parser.parse_args()
+
+	#seed the date info
+	(soonest_day, next_day) = next_change_days(date.today(), int(options.day))
+	query = CURRENT_WEEK_QUERY % (date.today(), soonest_day, next_day)
+	upcoming_query = UPCOMING_QUERY % next_day
 	
-	#print these first 'cause make_mail() is going to take a minute
+    #print these first 'cause make_mail() is going to take a minute
 	if options.echo:
-		print options.query
+		print query
+		print upcoming_query
 	if options.echo and options.to_addr:
 		print "Sending mail to:", options.to_addr
 	
 	#get password and open a session	
-	password = getpass.getpass("Password for %s on %s: " % (options.user, RT_BASE))
+	if not options.password:
+	    password = getpass.getpass("Password for %s on %s: " % (options.user, RT_BASE))
+	else: password = options.password
+
 	session(options.user, password)
 	
 	#generate the message
-	mail = make_mail(options.query)
+	message = make_message(query, upcoming_query)
 	
 	if options.echo:
-		print mail
-	if options.to_addr:	
+		print message
+	if options.to_addr and options.from_addr:
+		mail = make_mail(options.to_addr, soonest_day, message)
 		send_mail(options.from_addr, options.to_addr, mail)
 
 if __name__ == "__main__":
