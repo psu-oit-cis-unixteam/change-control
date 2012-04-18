@@ -72,28 +72,6 @@ Customer Impact:
 
 """
 
-def session(username, password, rt_base=RT_BASE):
-    """Get an auth token for this session.
-
-    username: rt username
-    
-    password: rt password
-
-    rt_base: rt base url, i.e. https://rt.example.com
-    """
-    auth = urllib2.build_opener(urllib2.HTTPCookieProcessor())
-    urllib2.install_opener(auth)
-    credentials = urllib.urlencode({'user': username, 'pass': password})
-    try:
-        session = auth.open(rt_base, credentials)
-        auth.close()
-        if "RT at a glance" not in session.read(): #afaik this is the only way to tell... it's 200 no matter what
-            sys.exit("Failed to log in to RT, check your username and password.")
-        else:
-            return session
-    except urllib2.URLError:
-        sys.exit("Failed to contact RT while logging in.")
-
 def fetch(url, credentials):
     """Fetch a URL, trim the header and return the result as str."""
     username, password = credentials
