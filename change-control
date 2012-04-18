@@ -23,7 +23,7 @@ __email__   = "maxp@pdx.edu"
 MON, TUE, WED, THU, FRI, SAT, SUN = range(7)
 
 RT_BASE             = 'https://support.oit.pdx.edu'
-RT_API              = RT_BASE + '/REST/1.0'
+RT_API              = RT_BASE + '/NoAuth-REST/1.0'
 RT_SEARCH           = RT_API + '/search/ticket?%s'
 RT_SHOW             = RT_API + '/%s/show'
 RT_TICKET_URL       = RT_BASE + '/Ticket/Display.html?id=%s'
@@ -59,16 +59,16 @@ CC_BODY             = """------[ %(id)s ]-----------------------
 Subject: %(Subject)s
 Requester: %(Requestors)s
 Start Time: %(Starts)s
-Duration: %(CC_Duration)s
+Duration: %(CF.{CC_Duration})s
 Status: %(Status)s
-Type: %(CC_Type)s
+Type: %(CF.{CC_Type})s
 Ticket: %(link)s
 
 Public Description:
-%(CC_Public_Description)s
+%(CF.{CC_Public_Description})s
 
 Customer Impact:
-%(CC_Customer_Impact)s
+%(CF.{CC_Customer_Impact})s
 
 """
 
@@ -94,17 +94,20 @@ def session(username, password, rt_base=RT_BASE):
     except urllib2.URLError:
         sys.exit("Failed to contact RT while logging in.")
 
-def fetch(url):
+def fetch(url, credentials):
     """Fetch a URL, trim the header and return the result as str."""
+    username, password = credentials
+    ldata = urllib.urlencode({'user': username, 'pass': password})
+    login = urllib2.Request(url, ldata)
     try:
-        responder   = urllib2.urlopen(url)
+        responder   = urllib2.urlopen(login)
         response    = responder.read()
         responder.close()
         return trim_header(response)
     except urllib2.URLError:
         sys.exit("Failed to contact RT while fetching %s" % url)
 
-def search(query, orderby, format="i"):
+def search(query, orderby, credentials, format="i"):
     """Build an RT query string.
 
     query:  your RT style pseudo-SQL query
@@ -119,14 +122,14 @@ def search(query, orderby, format="i"):
                     'orderby':  orderby,
                     'format':   format,
                 })
-    return fetch(RT_SEARCH % query)
+    return fetch(RT_SEARCH % query, credentials)
 
-def show(ticket):
+def show(ticket, credentials):
     """Perform a query to retrieve the full details of a ticket.
 
     ticket: A reference to an RT ticket, i.e.: ticket/1234567
     """
-    return fetch(RT_SHOW % ticket)
+    return fetch(RT_SHOW % ticket, credentials)
 
 def trim_header(response):
     """Remove the RT response header, which is a statusline and newline."""
@@ -162,19 +165,19 @@ def ticket_to_dict(ticket):
     ticket_dict['link'] = RT_TICKET_URL % ticket_dict['id']
     return ticket_dict
 
-def format_tickets(tickets, body, ticket_format=CC_BODY):
+def format_tickets(tickets, body, credentials, ticket_format=CC_BODY):
     """Iterate through a list of tickets and apply the ticket_format to them."""
     for ticket in tickets:
-        ticket = ticket_to_dict(show(ticket))
+        ticket = ticket_to_dict(show(ticket, credentials))
         body += ticket_format % ticket
     return body
 
-def make_message(query, upcoming_query, orderby="+Starts"):
+def make_message(query, upcoming_query, credentials, orderby="+Starts"):
     """Run the specified queries and template them into a message."""
     changes, future_changes = str(), str()
-    this_week = search(query, orderby)
-    next_week = search(upcoming_query, orderby)
-    changes = format_tickets(this_week, changes)
+    this_week = search(query, orderby, credentials)
+    next_week = search(upcoming_query, orderby, credentials)
+    changes = format_tickets(this_week, changes, credentials)
     if len(next_week) > 0:
         future_changes = format_tickets(next_week, future_changes)
     else:
@@ -229,10 +232,10 @@ def main():
         password = getpass.getpass("Password for %s on %s: " % (options.user, RT_BASE))
     else: password = options.password
 
-    session(options.user, password)
+    credentials = (options.user, password)
     
     #generate the message
-    message = make_message(query, upcoming_query)
+    message = make_message(query, upcoming_query, credentials)
     
     if options.echo:
         print message
