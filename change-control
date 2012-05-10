@@ -157,7 +157,7 @@ def make_message(query, upcoming_query, credentials, orderby="+Starts"):
     next_week = search(upcoming_query, orderby, credentials)
     changes = format_tickets(this_week, changes, credentials)
     if len(next_week) > 0:
-        future_changes = format_tickets(next_week, future_changes)
+        future_changes = format_tickets(next_week, future_changes, credentials)
     else:
         future_changes = "None scheduled."
     return CC_PREAMBLE % {'changes': changes, 'future_changes': future_changes}
