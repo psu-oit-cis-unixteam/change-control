@@ -44,7 +44,7 @@ CC_PREAMBLE         = """If you submitted a change that is not in this week's li
 sure you entered a valid Start date.  For more information on the Change
 Control process see:
 
-http://www.oit.pdx.edu/changecontrol
+http://www.pdx.edu/oit/changecontrol
 
 %(changes)s
 
